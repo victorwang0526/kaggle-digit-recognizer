@@ -1,11 +1,5 @@
 ### kaggle digit recognizer
 
-
-
-
-
-
-
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -46,10 +40,10 @@ for i in range(0, D):
     X_test.append(X_row)
 
 
-X_train = np.array(X_train)
-X_test = np.array(X_test)
-y_train = np.array(y_train)
-y_test = np.array(y_test)
+X_train = np.asarray(X_train)
+X_test = np.asarray(X_test)
+y_train = np.asarray(y_train)
+y_test = np.asarray(y_test)
 
 # preprocessing
 
