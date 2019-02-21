@@ -23,6 +23,9 @@ for i in range(6, 9):
 plt.show()
 # preprocessing
 
+X_train = X_train.reshape(X_train.shape[0], 28, 28, 1)
+X_test = X_test.reshape(X_test.shape[0], 28, 28, 1)
+
 mean_px = X_train.mean().astype(np.float32)
 std_px = X_train.std().astype(np.float32)
 
@@ -42,33 +45,76 @@ plt.plot(y_train[9])
 plt.xticks(range(10))
 plt.show()
 
-# cnn
+# preprocessing
+seed = 43
+np.random.seed(seed)
 
+# import Linear model
 from keras.models import Sequential
-from keras.layers import Convolution2D
-from keras.layers import MaxPooling2D
-from keras.layers import Dense
-from keras.layers import Flatten
-
-classifier = Sequential()
-
-# 1 convolution
-classifier.add(Convolution2D(16, (3, 3), activation='relu', input_shape=(28, 28, 1)))
-# 1 maxpool
-classifier.add(MaxPooling2D(pool_size=(2, 2)))
-
-# flatten
-classifier.add(Flatten())
-
-# ann
-
-# full connection
-
-classifier.add(Dense(units=128, activation='relu'))
-classifier.add(Dense(units=9, activation='sigmoid'))
-
-classifier.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-
-classifier.fit(X_train, y_train, epochs=20, validation_data=(X_test, y_test))
+from keras.layers.core import Lambda, Dense, Flatten, Dropout
+from keras.callbacks import EarlyStopping
+from keras.layers import BatchNormalization, Convolution2D, MaxPooling2D
 
 
+model = Sequential()
+model.add(Lambda(standardize, input_shape=(28, 28, 1)))
+model.add(Flatten())
+model.add(Dense(10, activation='softmax'))
+
+from keras.optimizers import RMSprop
+model.compile(optimizer=RMSprop(lr=0.001), loss='categorical_crossentropy', metrics=['accuracy'])
+
+from keras.preprocessing import image
+
+gen = image.ImageDataGenerator()
+
+# cross validation
+
+from sklearn.model_selection import train_test_split
+
+X = X_train
+y = y_train
+
+X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=0.1, random_state=42)
+
+batches = gen.flow(X_train, y_train, batch_size=64)
+val_batches = gen.flow(X_test, y_test, batch_size=64)
+
+history = model.fit_generator(generator=batches, steps_per_epoch=batches.n, epochs=3,
+                              validation_data=val_batches, validation_steps=val_batches.n)
+
+
+history_dict = history.history
+
+
+loss_values = history_dict['loss']
+val_loss_values = history_dict['val_loss']
+epochs = range(1, len(loss_values) + 1)
+
+
+import matplotlib.pyplot as plt
+plt.clf()
+# "bo" is for "blue dot"
+plt.plot(epochs, loss_values, 'bo')
+# b+ is for "blue crosses"
+plt.plot(epochs, val_loss_values, 'b+')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+
+plt.show()
+
+plt.clf()   # clear figure
+acc_values = history_dict['acc']
+val_acc_values = history_dict['val_acc']
+
+plt.plot(epochs, acc_values, 'bo')
+plt.plot(epochs, val_acc_values, 'b+')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+
+plt.show()
+
+predictions = model.predict_classes(X_test, verbose=0)
+submission = pd.DataFrame({'ImageId': list(range(1, len(predictions) + 1)),
+                           'Label': predictions})
+submission.to_csv('DR.csv', index=False, header=True)
